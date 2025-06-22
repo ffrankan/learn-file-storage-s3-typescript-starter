@@ -69,9 +69,8 @@ export async function handlerUploadVideo(cfg: ApiConfig, req: BunRequest) {
     s3Key = `${randomKey}.mp4`;
 
     // Upload to S3
-    await cfg.s3Client.file(cfg.s3Bucket, s3Key, Bun.file(tempFilePath), {
-      "Content-Type": videoFile.type,
-    });
+    const s3File = cfg.s3Client.file(s3Key);
+    await s3File.write(Bun.file(tempFilePath));
 
     // Update video record with S3 URL
     const videoURL = `https://${cfg.s3Bucket}.s3.${cfg.s3Region}.amazonaws.com/${s3Key}`;
