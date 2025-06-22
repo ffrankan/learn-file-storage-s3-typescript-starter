@@ -3,9 +3,6 @@ import { getBearerToken, validateJWT } from "../auth";
 import { getVideo, updateVideo } from "../db/videos";
 import { BadRequestError, NotFoundError, UserForbiddenError } from "./errors";
 import { randomBytes } from "crypto";
-import { unlink } from "fs/promises";
-import path from "path";
-import os from "os";
 
 import { type ApiConfig } from "../config";
 import type { BunRequest } from "bun";
@@ -53,41 +50,22 @@ export async function handlerUploadVideo(cfg: ApiConfig, req: BunRequest) {
     throw new BadRequestError("Invalid file type. Only MP4 videos are allowed");
   }
 
-  // Create temporary file
-  const tempDir = os.tmpdir();
-  const tempFileName = `video_${randomBytes(16).toString("hex")}.mp4`;
-  const tempFilePath = path.join(tempDir, tempFileName);
-  
-  let s3Key: string;
-  try {
-    // Save to temporary file
-    const videoBuffer = await videoFile.arrayBuffer();
-    await Bun.write(tempFilePath, new Uint8Array(videoBuffer));
+  // Generate S3 key with random 32-byte hex format
+  const randomKey = randomBytes(32).toString("hex");
+  const s3Key = `${randomKey}.mp4`;
 
-    // Generate S3 key with random 32-byte hex format
-    const randomKey = randomBytes(32).toString("hex");
-    s3Key = `${randomKey}.mp4`;
+  // Upload directly to S3 from memory
+  const s3File = cfg.s3Client.file(s3Key);
+  await s3File.write(videoFile);
 
-    // Upload to S3
-    const s3File = cfg.s3Client.file(s3Key);
-    await s3File.write(Bun.file(tempFilePath));
+  // Update video record with S3 URL
+  const videoURL = `https://${cfg.s3Bucket}.s3.${cfg.s3Region}.amazonaws.com/${s3Key}`;
+  const updatedVideo = {
+    ...video,
+    videoURL: videoURL,
+  };
 
-    // Update video record with S3 URL
-    const videoURL = `https://${cfg.s3Bucket}.s3.${cfg.s3Region}.amazonaws.com/${s3Key}`;
-    const updatedVideo = {
-      ...video,
-      videoURL: videoURL,
-    };
+  updateVideo(cfg.db, updatedVideo);
 
-    updateVideo(cfg.db, updatedVideo);
-
-    return respondWithJSON(200, updatedVideo);
-  } finally {
-    // Clean up temporary file
-    try {
-      await unlink(tempFilePath);
-    } catch (err) {
-      console.warn("Failed to clean up temporary file:", tempFilePath, err);
-    }
-  }
+  return respondWithJSON(200, updatedVideo);
 }
