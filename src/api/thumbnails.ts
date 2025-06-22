@@ -4,6 +4,7 @@ import { getVideo, updateVideo } from "../db/videos";
 import type { ApiConfig } from "../config";
 import type { BunRequest } from "bun";
 import { BadRequestError, NotFoundError, UserForbiddenError } from "./errors";
+import { randomBytes } from "crypto";
 import path from "path";
 
 
@@ -47,9 +48,10 @@ export async function handlerUploadThumbnail(cfg: ApiConfig, req: BunRequest) {
     throw new UserForbiddenError("You are not authorized to upload thumbnails for this video");
   }
   
-  // Get file extension from media type
+  // Generate random filename to avoid caching issues
+  const randomName = randomBytes(32).toString("base64url");
   const fileExtension = mediaType.split('/')[1];
-  const fileName = `${videoId}.${fileExtension}`;
+  const fileName = `${randomName}.${fileExtension}`;
   const filePath = path.join(cfg.assetsRoot, fileName);
   
   // Save file to assets directory
