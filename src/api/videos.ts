@@ -198,8 +198,10 @@ export async function handlerUploadVideo(cfg: ApiConfig, req: BunRequest) {
     }
   }
 
-  // Update video record with S3 URL that contains aspect ratio in the path
-  const videoURL = `https://${cfg.s3Bucket}.s3.${cfg.s3Region}.amazonaws.com/${s3Key}`;
+  // Generate S3 URL with aspect ratio path
+  const aspectRatio = s3Key.startsWith('landscape-') ? 'landscape' : 
+                     s3Key.startsWith('portrait-') ? 'portrait' : 'other';
+  const videoURL = `https://${cfg.s3Bucket}.s3.${cfg.s3Region}.amazonaws.com/${aspectRatio}/${s3Key}`;
   
   const updatedVideo = {
     ...video,
