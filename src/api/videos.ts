@@ -182,9 +182,9 @@ export async function handlerUploadVideo(cfg: ApiConfig, req: BunRequest) {
     // Get aspect ratio from the temporary file
     const aspectRatio = await getVideoAspectRatio(tempFilePath);
 
-    // Generate S3 key with random 32-byte hex format (no aspect ratio prefix)
+    // Generate S3 key with aspect ratio folder path
     const randomKey = randomBytes(32).toString("hex");
-    s3Key = `${randomKey}.mp4`;
+    s3Key = `${aspectRatio}/${randomKey}.mp4`;
 
     // Upload to S3 from memory
     const s3File = cfg.s3Client.file(s3Key);
@@ -198,8 +198,8 @@ export async function handlerUploadVideo(cfg: ApiConfig, req: BunRequest) {
     }
   }
 
-  // Generate S3 URL with aspect ratio path (aspectRatio determined earlier)
-  const videoURL = `https://${cfg.s3Bucket}.s3.${cfg.s3Region}.amazonaws.com/${aspectRatio}/${s3Key}`;
+  // Generate S3 URL (s3Key already includes the aspect ratio path)
+  const videoURL = `https://${cfg.s3Bucket}.s3.${cfg.s3Region}.amazonaws.com/${s3Key}`;
   
   const updatedVideo = {
     ...video,
