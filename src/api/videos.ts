@@ -59,6 +59,72 @@ async function getVideoAspectRatio(filePath: string): Promise<string> {
   }
 }
 
+export async function handlerServeVideo(cfg: ApiConfig, req: BunRequest) {
+  const { videoId } = req.params as { videoId?: string };
+  if (!videoId) {
+    throw new BadRequestError("Invalid video ID");
+  }
+
+  // Get video metadata from database
+  const video = getVideo(cfg.db, videoId);
+  if (!video || !video.videoURL) {
+    throw new NotFoundError("Video not found");
+  }
+
+  // Extract S3 key from the stored video URL
+  const s3Key = video.videoURL.split('/').pop();
+  if (!s3Key) {
+    throw new BadRequestError("Invalid video URL");
+  }
+
+  try {
+    // Get video from S3
+    const s3File = cfg.s3Client.file(s3Key);
+    const videoExists = await s3File.exists();
+    
+    if (!videoExists) {
+      throw new NotFoundError("Video file not found in storage");
+    }
+
+    // Handle Range requests for video streaming
+    const range = req.headers.get('range');
+    const videoFile = await s3File.arrayBuffer();
+    const videoSize = videoFile.byteLength;
+
+    if (range) {
+      // Parse range header (e.g., "bytes=0-200")
+      const ranges = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(ranges[0], 10);
+      const end = ranges[1] ? parseInt(ranges[1], 10) : videoSize - 1;
+      
+      const chunkSize = (end - start) + 1;
+      const videoChunk = videoFile.slice(start, end + 1);
+
+      return new Response(videoChunk, {
+        status: 206,
+        headers: {
+          'Content-Range': `bytes ${start}-${end}/${videoSize}`,
+          'Accept-Ranges': 'bytes',
+          'Content-Length': chunkSize.toString(),
+          'Content-Type': 'video/mp4',
+        },
+      });
+    } else {
+      // Serve full video
+      return new Response(videoFile, {
+        headers: {
+          'Content-Type': 'video/mp4',
+          'Content-Length': videoSize.toString(),
+          'Accept-Ranges': 'bytes',
+        },
+      });
+    }
+  } catch (error) {
+    console.error("Error serving video:", error);
+    throw new BadRequestError("Failed to serve video");
+  }
+}
+
 export async function handlerUploadVideo(cfg: ApiConfig, req: BunRequest) {
   const MAX_UPLOAD_SIZE = 1 << 30; // 1GB
   
@@ -132,8 +198,9 @@ export async function handlerUploadVideo(cfg: ApiConfig, req: BunRequest) {
     }
   }
 
-  // Update video record with S3 URL
+  // Update video record with S3 URL that contains aspect ratio in the path
   const videoURL = `https://${cfg.s3Bucket}.s3.${cfg.s3Region}.amazonaws.com/${s3Key}`;
+  
   const updatedVideo = {
     ...video,
     videoURL: videoURL,

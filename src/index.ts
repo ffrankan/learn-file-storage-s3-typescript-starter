@@ -12,7 +12,7 @@ import {
   handlerVideoMetaDelete,
   handlerVideosRetrieve,
 } from "./api/video-meta";
-import { handlerUploadVideo } from "./api/videos";
+import { handlerUploadVideo, handlerServeVideo } from "./api/videos";
 import { handlerUploadThumbnail } from "./api/thumbnails";
 import { handlerReset } from "./api/reset";
 import { ensureAssetsDir } from "./api/assets";
@@ -44,6 +44,9 @@ Bun.serve({
     "/api/videos/:videoId": {
       GET: withConfig(cfg, handlerVideoGet),
       DELETE: withConfig(cfg, handlerVideoMetaDelete),
+    },
+    "/api/videos/:videoId/stream": {
+      GET: withConfig(cfg, handlerServeVideo),
     },
     "/api/thumbnail_upload/:videoId": {
       POST: withConfig(cfg, handlerUploadThumbnail),

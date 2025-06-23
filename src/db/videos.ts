@@ -9,6 +9,7 @@ export type Video = {
   description: string;
   thumbnailURL?: string;
   videoURL?: string;
+  s3Key?: string;
   userID: string;
 };
 
@@ -26,6 +27,7 @@ type VideoRow = {
   description: string;
   thumbnail_url?: string;
   video_url?: string;
+  s3_key?: string;
   user_id: string;
 };
 
@@ -39,6 +41,7 @@ export function getVideos(db: Database, userID: string): Video[] {
       description,
       thumbnail_url,
       video_url,
+      s3_key,
       user_id
     FROM videos
     WHERE user_id = ?
@@ -55,6 +58,7 @@ export function getVideos(db: Database, userID: string): Video[] {
     description: row.description,
     thumbnailURL: row.thumbnail_url,
     videoURL: row.video_url,
+    s3Key: row.s3_key,
     userID: row.user_id,
   }));
 
@@ -95,6 +99,7 @@ export function getVideo(db: Database, id: string): Video | undefined {
       description,
       thumbnail_url,
       video_url,
+      s3_key,
       user_id
     FROM videos
     WHERE id = ?
@@ -114,6 +119,7 @@ export function getVideo(db: Database, id: string): Video | undefined {
     description: row.description,
     thumbnailURL: row.thumbnail_url ?? undefined,
     videoURL: row.video_url ?? undefined,
+    s3Key: row.s3_key ?? undefined,
     userID: row.user_id,
   };
 }

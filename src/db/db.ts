@@ -39,11 +39,18 @@ function autoMigrate(db: Database) {
 		title TEXT NOT NULL,
 		description TEXT,
 		thumbnail_url TEXT,
-		video_url TEXT TEXT,
+		video_url TEXT,
 		user_id INTEGER,
 		FOREIGN KEY(user_id) REFERENCES users(id)
 	);
 	`;
+  
+  // Add s3_key column if it doesn't exist
+  try {
+    db.exec("ALTER TABLE videos ADD COLUMN s3_key TEXT;");
+  } catch (e) {
+    // Column might already exist
+  }
   db.exec(videoTable);
 }
 
